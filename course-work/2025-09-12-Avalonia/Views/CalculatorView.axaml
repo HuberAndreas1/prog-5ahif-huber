@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:vm="using:_2025_09_12_Avalonia.ViewModels"
+             x:DataType="vm:CalculatorViewModel"
+             x:Class="_2025_09_12_Avalonia.Views.CalculatorView">
+    <Grid RowDefinitions="40,54,40,54,40,54,20,62,84" ShowGridLines="False">
+            
+        <TextBlock Grid.Row="0" Text="Number 1" VerticalAlignment="Bottom"/>
+        <NumericUpDown Grid.Row="1" Value="{Binding FirstNumber}" 
+                       HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            
+        <TextBlock Grid.Row="2" Text="Number 2" VerticalAlignment="Bottom"/>
+        <NumericUpDown Grid.Row="3" Value="{Binding SecondNumber}" 
+                       HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            
+        <TextBlock Grid.Row="4" Text="Operator" VerticalAlignment="Bottom"/>
+        <ComboBox Grid.Row="5" ItemsSource="{Binding Operators}"
+                  SelectedItem="{Binding SelectedOperator}" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            
+        <!-- Spacer row -->
+        <Border Grid.Row="6"/>
+            
+        <Button Grid.Row="7"  Content="Calculate"
+                Command="{Binding CalculateCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            
+        <StackPanel Grid.Row="8" VerticalAlignment="Top">
+            <TextBlock  Text="Result" Margin="0,8,0,6"/>
+            <Border  HorizontalAlignment="Stretch">
+                <TextBlock Text="{Binding Result}" HorizontalAlignment="Stretch"/>
+            </Border>
+        </StackPanel>
+            
+    </Grid>
+</UserControl>
