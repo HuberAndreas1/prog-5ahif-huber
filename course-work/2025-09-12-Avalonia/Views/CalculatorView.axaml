@@ -28,7 +28,7 @@
             
         <StackPanel Grid.Row="8" VerticalAlignment="Top">
             <TextBlock  Text="Result" Margin="0,8,0,6"/>
-            <Border  HorizontalAlignment="Stretch">
+            <Border  HorizontalAlignment="Stretch" BorderThickness="1" BorderBrush="Gray" Padding="6">
                 <TextBlock Text="{Binding Result}" HorizontalAlignment="Stretch"/>
             </Border>
         </StackPanel>
