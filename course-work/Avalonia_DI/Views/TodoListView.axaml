@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:vm="using:Avalonia_DI.ViewModels"
+             x:DataType="vm:TodoListViewModel"
+             x:Class="Avalonia_DI.Views.TodoListView">
+    <ScrollViewer>
+        <StackPanel>
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Margin="10">
+                <TextBox Text="{Binding NewTodoTitle}" Width="200" Margin="0,0,0,10" />
+                <Button Content="Add Todo" Command="{Binding AddTodoCommand}" Width="100"/>
+            </StackPanel>
+            <ListBox ItemsSource="{Binding Items}" >
+                <ItemsControl.DataTemplates>
+                    <DataTemplate x:DataType="vm:TodoItem">
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox IsChecked="{Binding IsDone}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.DataTemplates>
+            </ListBox>
+        </StackPanel>
+        
+    </ScrollViewer>
+    
+</UserControl>
