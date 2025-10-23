@@ -1,0 +1,18 @@
+<table class="w-full border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
+  <thead class="bg-gray-100 border-b-2 border-gray-200">
+  <tr>
+    <th class="px-4 py-3 text-left font-semibold text-sm text-gray-700 uppercase tracking-wider">Produkt</th>
+    <th class="px-4 py-3 text-center font-semibold text-sm text-gray-700 uppercase tracking-wider">Menge</th>
+    <th class="px-4 py-3 text-right font-semibold text-sm text-gray-700 uppercase tracking-wider">Preis</th>
+  </tr>
+  </thead>
+  <tbody>
+  @for (line of lines; track line.productId) {
+    <tr class="border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors duration-150">
+      <td class="px-4 py-3 text-left text-sm text-gray-900">{{line.productName}}</td>
+      <td class="px-4 py-3 text-center text-sm text-gray-900">{{line.quantity}}</td>
+      <td class="px-4 py-3 text-right text-sm text-gray-900">{{Math.fround(line.totalPrice).toFixed(2)}} €</td>
+    </tr>
+  }
+  </tbody>
+</table>

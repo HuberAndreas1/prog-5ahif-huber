@@ -1,0 +1,12 @@
+<div class="w-48 h-56 border-2 border-gray-200 rounded-2xl bg-gradient-to-br from-white to-gray-50 flex flex-col justify-between p-6 shadow-md hover:shadow-xl transition-shadow duration-300">
+  <div class="flex-1 flex items-center justify-center">
+    <p class="text-2xl font-bold text-gray-800 text-center leading-tight">
+      {{product().productName}}
+    </p>
+  </div>
+  <div class="border-t-2 border-blue-400 pt-4 mt-4">
+    <p class="text-3xl font-bold text-blue-600 text-center">
+      {{product().unitPrice | currency:'EUR':'symbol':'1.2-2'}}
+    </p>
+  </div>
+</div>
