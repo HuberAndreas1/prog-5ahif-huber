@@ -1,3 +1,8 @@
+using System.Runtime.CompilerServices;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
+using Microsoft.VisualBasic;
+
 namespace AppServices.Importer;
 
 /// <summary>
@@ -119,7 +124,282 @@ public class TimesheetParser : ITimesheetParser
     /// <inheritdoc/>
     public IEnumerable<TimeEntry> ParseCsv(string csvContent, IEnumerable<Employee> existingEmployees, IEnumerable<Project> existingProjects)
     {
-        // TODO: Add the parser implementation here
-        throw new NotImplementedException();
+        var lines = csvContent.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries).ToArray();
+        var index = 0;
+
+        var (employeeId, employeeName) = ParseEmployeeSection(lines, ref index);
+
+        if (index >= lines.Length)
+        {
+            throw new TimesheetParseException(ImportFileError.MissingTimesheetSection);
+        }
+
+        var employee = FindOrCreateEmployee(employeeId, employeeName, existingEmployees);
+
+        var projects = existingProjects.ToDictionary(p => p.ProjectCode, p => p);
+
+        if (!lines[index].Contains(": "))
+        {
+            throw new TimesheetParseException(ImportFileError.InvalidKeyValueFormat);
+        }
+
+        var timeEntries = new List<TimeEntry>();
+
+        while (index < lines.Length)
+        {
+            var timeSheetDate = ParseTimeSheetHeader(lines, ref index);
+            var sectionTimeEntries = ParseTimeEntries(lines, ref index, timeSheetDate, employee, projects);
+
+            timeEntries.AddRange(sectionTimeEntries);
+        }
+
+        return timeEntries;
+    }
+
+    private static List<TimeEntry> ParseTimeEntries(string[] lines, ref int index, DateOnly timeSheetDate, Employee employee, Dictionary<string, Project> projects)
+    {
+        if (index >= lines.Length)
+        {
+            throw new TimesheetParseException(ImportFileError.EmptyTimesheetSection);
+        }
+
+        var timeEntries = new List<TimeEntry>();
+
+        while (index < lines.Length)
+        {
+            var record = lines[index];
+
+            if (record.StartsWith("TIMESHEETS")) {
+                break;
+            }
+
+            timeEntries.Add(ParseTimeEntry(record, timeSheetDate, employee, projects));
+
+            index++;
+        }
+
+        return timeEntries;
+    }
+
+    private static TimeEntry ParseTimeEntry(string record, DateOnly timeSheetDate, Employee employee, Dictionary<string, Project> projects)
+    {
+        var splittedRecord = record.Split(";", StringSplitOptions.None);
+
+        if (splittedRecord.Length != 4)
+        {
+            throw new TimesheetParseException(ImportFileError.IncorrectFieldCount);
+        }
+
+        if (splittedRecord.Any(string.IsNullOrWhiteSpace)) {
+            throw new TimesheetParseException(ImportFileError.EmptyField);
+        }
+
+        if (!TimeOnly.TryParseExact(splittedRecord[0], "HH:mm", out var startTime)) {
+            throw new TimesheetParseException(ImportFileError.InvalidTime);
+        }
+
+        if (!TimeOnly.TryParseExact(splittedRecord[1], "HH:mm", out var endTime)) {
+            throw new TimesheetParseException(ImportFileError.InvalidTime);
+        }
+
+        if (startTime > endTime) {
+            throw new TimesheetParseException(ImportFileError.EndTimeBeforeStartTime);
+        }
+
+        var description = ParseDescription(splittedRecord[2]);
+
+        var project = ParseProject(splittedRecord[3], projects);
+
+        return new TimeEntry
+        {
+            Date = timeSheetDate,
+            StartTime = startTime,
+            EndTime = endTime,
+            Description = description,
+            Employee = employee,
+            Project = project,
+            ProjectId = project.Id,
+            EmployeeId = employee.Id
+        };
+    }
+
+    private static Project ParseProject(string projectCode, Dictionary<string, Project> projects) {
+        
+        if (projectCode.StartsWith('"') || projectCode.EndsWith('"')) {
+            throw new TimesheetParseException(ImportFileError.ProjectQuoted);
+        }
+
+        if (projectCode.Length > 20) {
+            throw new TimesheetParseException(ImportFileError.ProjectTooLong);
+        }
+
+        if (!projects.TryGetValue(projectCode, out var projectObject)) {
+            projectObject = new Project
+            {
+                ProjectCode = projectCode
+            };
+            projects.Add(projectCode, projectObject);
+        }
+
+        return projectObject;
+    }
+    private static string ParseDescription(string description) {
+        if (!description.StartsWith('"') || !description.EndsWith('"')) {
+            throw new TimesheetParseException(ImportFileError.DescriptionNotQuoted);
+        }
+
+        description = description[1..^1];
+
+        if (description.Length > 200) {
+            throw new TimesheetParseException(ImportFileError.DescriptionTooLong);
+        }
+
+        return description;
+    }
+
+    private static DateOnly ParseTimeSheetHeader(string[] lines, ref int index)
+    {
+        if (index >= lines.Length)
+        {
+            throw new TimesheetParseException(ImportFileError.MissingTimesheetSection);
+        }
+
+        var line = lines[index];
+        ValidateLineWhitespaces(line);
+
+        if (!line.StartsWith("TIMESHEETS:"))
+        {
+            throw new TimesheetParseException(ImportFileError.MissingTimesheetSection);
+        }
+
+        if (!DateOnly.TryParseExact(line["TIMESHEETS: ".Length..], "yyyy-MM-dd", out var date))
+        {
+            throw new TimesheetParseException(ImportFileError.InvalidDate);
+        }
+
+        index++;
+
+        return date;
+    }
+
+    private static (string employeeId, string employeeName) ParseEmployeeSection(string[] lines, ref int index)
+    {
+        string? employeeId = null;
+        string? employeeName = null;
+
+        while (index < lines.Length)
+        {
+            var line = lines[index];
+
+            if (line.StartsWith("TIMESHEETS:"))
+            {
+                break;
+            }
+
+            ValidateLineWhitespaces(line);
+
+            if (!line.Contains(": "))
+            {
+                throw new TimesheetParseException(ImportFileError.InvalidKeyValueFormat);
+            }
+
+            var keyValueSplit = line.Split(": ");
+            var key = keyValueSplit[0];
+            var value = keyValueSplit[1];
+
+            switch (key)
+            {
+                case "EMP-ID":
+
+                    if (employeeId != null)
+                    {
+                        throw new TimesheetParseException(ImportFileError.DuplicateEmployeeId);
+                    }
+
+                    if (value.Length > 5)
+                    {
+                        throw new TimesheetParseException(ImportFileError.EmployeeIdTooLong);
+                    }
+
+                    if (!int.TryParse(value, out _))
+                    {
+                        throw new TimesheetParseException(ImportFileError.EmployeeIdNotNumeric);
+                    }
+
+
+                    employeeId = value;
+                    break;
+                case "EMP-NAME":
+                    if (employeeName != null)
+                    {
+                        throw new TimesheetParseException(ImportFileError.DuplicateEmployeeName);
+                    }
+
+                    if (value.Length > 100)
+                    {
+                        throw new TimesheetParseException(ImportFileError.EmployeeIdTooLong);
+                    }
+
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        throw new TimesheetParseException(ImportFileError.EmptyValue);
+                    }
+
+                    employeeName = value;
+                    break;
+                default:
+                    throw new TimesheetParseException(ImportFileError.UnknownKey);
+            }
+
+            index++;
+        }
+
+        if (employeeId == null)
+        {
+            throw new TimesheetParseException(ImportFileError.MissingEmployeeId);
+        }
+
+        if (employeeName == null)
+        {
+            throw new TimesheetParseException(ImportFileError.MissingEmployeeName);
+        }
+
+        return (employeeId, employeeName);
+    }
+    private static void ValidateLineWhitespaces(string line)
+    {
+
+        if (line.Length > 0 && char.IsWhiteSpace(line[0]))
+        {
+            throw new TimesheetParseException(ImportFileError.LeadingWhitespace);
+        }
+
+        if (line.Length > 0 && char.IsWhiteSpace(line[^1]))
+        {
+            throw new TimesheetParseException(ImportFileError.TrailingWhitespace);
+        }
+    }
+
+    private static Employee FindOrCreateEmployee(string employeeId, string employeeName, IEnumerable<Employee> existingEmployees)
+    {
+        var employee = existingEmployees.FirstOrDefault(e => e.EmplyeeId.Equals(employeeId));
+
+        if (employee != null)
+        {
+            if (employee.EmployeeName != employeeName)
+            {
+                employee.EmployeeName = employeeName;
+            }
+
+            return employee;
+        }
+
+        employee = new Employee
+        {
+            EmplyeeId = employeeId,
+            EmployeeName = employeeName
+        };
+
+        return employee;
     }
 }
