@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using WebApiTests;
+
+namespace WebApiTests;
 
 public class TimeTrackingIntegrationTests(WebApiTestFixture fixture) : IClassFixture<WebApiTestFixture> {
     [Fact]
@@ -39,6 +40,6 @@ public class TimeTrackingIntegrationTests(WebApiTestFixture fixture) : IClassFix
     public async Task DeleteTimeEntry_WithNonExistentId_ReturnsNotFound() {
         var response = await fixture.HttpClient.DeleteAsync("/timeentries/9999999");
 
-        Assert.Equal(response.StatusCode, HttpStatusCode.NotFound);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }
